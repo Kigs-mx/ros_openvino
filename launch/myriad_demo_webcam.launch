@@ -17,10 +17,19 @@
 -->
 
 <launch>
-    <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" />
-
+<!--
+    <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="log">
+        <param name="image_width"         value="640" />
+        <param name="image_height"         value="480" />
+        <param name="camera_frame_id"      value="head_camera"/>
+        <param name="autofocus"            value="true"/>
+        <param name="camera_name"           value="c922"/>
+    </node>
+-->   
     <node name="object_detection" pkg="ros_openvino" type="object_detection" output="screen">
-        <remap from="/object_detection/input_image" to="/usb_cam/image_raw" />
+        <remap from="/object_detection/input_image" to="/hik_cam_node/hik_rgb_cam_ds2t/image_rect_color" />
+        <!--remap from="/object_detection/camera_info" to="hardware/usb_cam/camera_info" /-->
+        
         <param name="threshold"         value="0.5" />
         <param name="target"            value="MYRIAD" />
         <param name="model_network"     value="$(find ros_openvino)/models/FP16/mobilenet-ssd/mobilenet-ssd.xml" />
@@ -28,11 +37,14 @@
         <param name="model_labels"      value="$(find ros_openvino)/models/FP16/mobilenet-ssd/mobilenet-ssd.labels" />
         <param name="model_colors"      value="$(find ros_openvino)/models/FP16/mobilenet-ssd/mobilenet-ssd.colors" />
         <param name="output_as_image"   value="true" />
-        <param name="output_as_list"    value="false" />
+        <param name="output_as_list"    value="true" />
         <param name="depth_analysis"    value="false" />
+        <param name="find_specific_target"  value="true"/>
+        <param name="specific_target"   value="person"/>
     </node>
 
-    <node name="analysis_viewer" pkg="image_view" type="image_view">
-        <remap from="/image"             to="/object_detection/output_image" />
+<!--    <node name="analysis_viewer" pkg="image_view" type="image_view">
+        <remap from="image"             to="object_detection/output_image" />
     </node>
+-->
 </launch>

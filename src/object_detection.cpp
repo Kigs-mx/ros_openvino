@@ -1,4 +1,11 @@
-/* 
+/*
+ ******************************************************ROOMIE IT***************************************************
+ * ATENCIÓN:                                                                                                      *
+ * Esta es una version modificada del codigo original, cuyo objetivo es detectar solo un tipo de objeto especifico*
+ * definido por el parametro /object_detection/specific_target y habilitado por la bandera                        *
+ * /object_detection/find_specific_target                                                                         *
+ ******************************************************************************************************************
+ *
  * This file is part of the ros_openvino package (https://github.com/gbr1/ros_openvino or http://gbr1.github.io).
  * Copyright (c) 2019 Giovanni di Dio Bruno.
  * 
@@ -72,6 +79,10 @@ bool output_markerslabel;
 std::string depth_frameid;
 float markerduration;
 bool output_boxlist;
+// Flag to on/off deteccion of specific target ->Roomie-IT
+std::string specific_target;
+bool find_specific_target;
+//
 
 //ROS messages
 sensor_msgs::Image output_image_msg;
@@ -107,7 +118,7 @@ void frame_to_blob(const cv::Mat& image,InferRequest::Ptr& analysis,const std::s
 //Callback: a new RGB image is arrived
 void imageCallback(const sensor_msgs::Image::ConstPtr& image_msg){
     cv::Mat color_mat(image_msg->height,image_msg->width,CV_MAKETYPE(CV_8U,3),const_cast<uchar*>(&image_msg->data[0]), image_msg->step);
-    cv::cvtColor(color_mat,color_mat,cv::COLOR_BGR2RGB);
+    //cv::cvtColor(color_mat,color_mat,cv::COLOR_BGR2RGB);
     if(!cf_available){
         color_mat.copyTo(frame_now);
         cf_available=true;
@@ -232,7 +243,18 @@ int main(int argc, char **argv){
         }
         else{
             depth_analysis=true;
-            ROS_INFO("[Default] Depth Analysis: %s", depth_analysis ? "ENABLED" : "DISABLED");
+            ROS_INFO("[Default] Deptconfidence_thresholdh Analysis: %s", depth_analysis ? "ENABLED" : "DISABLED");
+        }
+        
+        // Get param of flag and type of interest object to detect -> Roomie-IT
+        if(n.getParam("/object_detection/find_specific_target", find_specific_target)){
+            n.getParam("/object_detection/specific_target", specific_target);
+            ROS_INFO("Node Activate to detect only: %s", specific_target.c_str());
+        }
+        else{
+            find_specific_target = false;
+            ROS_INFO("Find All type of objects trained in the Artificial Neural Network");
+            specific_target = "All types";
         }
 
         if (depth_analysis){
@@ -278,7 +300,7 @@ int main(int argc, char **argv){
 
         
         //ROS subscribers
-        ros::Subscriber image_sub = n.subscribe("/object_detection/input_image",1,imageCallback);
+        ros::Subscriber image_sub = n.subscribe("/object_detection/input_image", 1, imageCallback);
         ros::Subscriber camerainfo_sub;
         ros::Subscriber depth_sub; 
         
@@ -420,6 +442,147 @@ int main(int argc, char **argv){
                         result_ymin=result_ymin<0.0? 0.0 : result_ymin;
                         result_ymax=result_ymax>1.0? 1.0 : result_ymax;   
 
+                        if(find_specific_target){
+                            //check threshold
+                            if (text == specific_target && result_confidence > confidence_threshold){
+                                //result topic
+                                if (output_as_list){
+                                    tmp_object.label=text;
+                                    tmp_object.confidence=result_confidence;
+                                    tmp_object.x=result_xmin;
+                                    tmp_object.y=result_ymin;
+                                    tmp_object.width=result_xmax-result_xmin;
+                                    tmp_object.height=result_ymax-result_ymin;
+                                    results_list.objects.push_back(tmp_object);
+                                }
+
+                                //if depth analysis for 3d world detection is active
+                                if (depth_analysis){
+
+                                    cv::Mat subdepthP = depth_frame(cv::Rect(result_xmin*depth_width,result_ymin*depth_height,(result_xmax-result_xmin)*depth_width,(result_ymax-result_ymin)*depth_height));
+                                    cv::Mat subdepth_full;
+                                    subdepthP.copyTo(subdepth_full);
+                                    //cv::rectangle(depth_frame, cv::Point2f(xmin*depth_width, ymin*depth_height), cv::Point2f(xmax*depth_width, ymax*depth_height), 0xffff);
+                                    cv::Mat subdepth;
+                                    subdepth_full.convertTo(subdepth,CV_8U,0.0390625);
+                                    
+                                    std::vector<std::vector<cv::Point> > contours;
+                                    std::vector<cv::Vec4i> hierarchy;
+                                    
+                                    cv::Scalar m=cv::mean(subdepth);
+                                    cv::threshold(subdepth,subdepth,m[0]*2.0,100,4);
+
+                                    cv::findContours(subdepth,contours,hierarchy,cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE, cv::Point(0,0));
+                                    for (int i=0; i<contours.size(); i++){
+                                        cv::drawContours(subdepth,contours,i,0xffff,cv::FILLED,8,hierarchy, 0, cv::Point());
+                                    }
+                                    subdepth.convertTo(subdepth,CV_16U);
+                                    subdepth=subdepth+subdepth*256;
+                                    cv::bitwise_and(subdepth,subdepth_full,subdepth_full);
+                                    cv::Mat mask = cv::Mat(subdepth_full!=0);
+                                    cv::Scalar avg, dstd;
+                                    cv::meanStdDev(subdepth_full,avg,dstd,mask);
+                                    //cv::imshow("ruggero",mask);
+                                    //cv::waitKey(1);
+
+                                    float box_x=avg[0]/1000.0;
+                                    float box_y=-(((result_xmax+result_xmin)/2.0)*depth_width-cx)/fx*avg[0]/1000.0;
+                                    float box_z=-(((result_ymax+result_ymin)/2.0)*depth_height-cy)/fy*avg[0]/1000.0;
+
+                                    float box_width = avg[0]*depth_width/fx*(result_xmax-result_xmin)/1000.0;
+                                    float box_height= avg[0]*depth_height/fy*(result_ymax-result_ymin)/1000.0;
+                                    float box_depth = dstd[0]*2.0/1000.0;
+
+                                    //if output as markers is true show cubes in rviz
+                                    if (output_markers){
+                                        marker.header.frame_id = depth_frameid;
+                                        marker.header.stamp = ros::Time::now();
+
+                                        marker.ns = "objects_box";
+                                        marker.id = kmarker;
+                                        marker.type = visualization_msgs::Marker::CUBE;
+                                        marker.action = visualization_msgs::Marker::ADD;
+
+                                        marker.pose.position.x = box_x;
+                                        marker.pose.position.y = box_y;
+                                        marker.pose.position.z = box_z;
+                                        marker.pose.orientation.x = 0.0;
+                                        marker.pose.orientation.y = 0.0;
+                                        marker.pose.orientation.z = 0.0;
+                                        marker.pose.orientation.w = 1.0;
+
+                                        marker.scale.x = box_depth;
+                                        marker.scale.y = box_width;
+                                        marker.scale.z = box_height;
+
+                                        marker.color.r = colorR/255.0;
+                                        marker.color.g = colorG/255.0;
+                                        marker.color.b = colorB/255.0;
+                                        marker.color.a = 0.2f;
+
+                                        marker.lifetime = ros::Duration(markerduration);
+                                        markers.markers.push_back(marker);
+                                        kmarker++;
+                                    }
+
+                                    //if output as markers is true show flaoting text in rviz
+                                    if (output_markerslabel){
+                                        marker_label.header.frame_id= depth_frameid;
+                                        marker_label.header.stamp = ros::Time::now();
+                                        marker_label.ns="objects_label";
+                                        marker_label.id = kmarker;
+                                        marker_label.text = text;
+                                        marker_label.type=visualization_msgs::Marker::TEXT_VIEW_FACING;
+                                        marker_label.action = visualization_msgs::Marker::ADD;
+                                        marker_label.pose.position.x = box_x;
+                                        marker_label.pose.position.y = box_y;
+                                        marker_label.pose.position.z = box_z+box_height/2.0+0.05;
+                                        marker_label.pose.orientation.x=0.0;
+                                        marker_label.pose.orientation.y=0.0;
+                                        marker_label.pose.orientation.z=0.0;
+                                        marker_label.pose.orientation.w=1.0;
+                                        marker_label.scale.z=box_height/2;
+                                        marker_label.color.r = colorR/255.0;
+                                        marker_label.color.g = colorG/255.0;
+                                        marker_label.color.b = colorB/255.0;
+                                        marker_label.color.a = 0.8f;
+                                        marker_label.lifetime = ros::Duration(markerduration);
+                                        markers.markers.push_back(marker_label);
+                                        kmarker++;
+                                    }
+
+                                    //if you want a topic as list of data
+                                    if (output_boxlist){
+                                        tmp_box.label=text;
+                                        tmp_box.confidence=result_confidence;
+                                        tmp_box.x=box_x;
+                                        tmp_box.y=box_y;
+                                        tmp_box.z=box_z;
+                                        tmp_box.width=box_width;
+                                        tmp_box.height=box_height;
+                                        tmp_box.depth=box_depth;
+                                        box_list.objectboxes.push_back(tmp_box);
+                                    }
+                                }
+
+                                //if output is a rgb image
+                                if (output_as_image){
+                                    result_xmin*=color_width;
+                                    result_xmax*=color_width;
+                                    result_ymin*=color_height;
+                                    result_ymax*=color_height;
+
+                                    //compose a label on the top
+                                    std::ostringstream c;
+                                    c << ":" << std::fixed << std::setprecision(3) << result_confidence;
+                                    cv::putText(frame_now, text + c.str(),cv::Point2f(result_xmin, result_ymin - 5), cv::FONT_HERSHEY_COMPLEX_SMALL, 1,cv::Scalar(colorB, colorG, colorR));
+                                    cv::rectangle(frame_now, cv::Point2f(result_xmin, result_ymin), cv::Point2f(result_xmax, result_ymax), cv::Scalar(colorB, colorG, colorR));
+                                }
+                            }
+                            
+                        }
+                        else{
+                        
                         //check threshold
                         if (result_confidence > confidence_threshold){
                             //result topic
@@ -608,6 +771,7 @@ int main(int argc, char **argv){
                 is_last_frame=true;
             }    
         }
+    }
     }
     //hey! there is something not working here!
     catch(const std::exception& e){
