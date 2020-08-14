@@ -157,6 +157,8 @@ int main(int argc, char **argv){
         ros::init(argc, argv, "object_detection");
         //Handle creation
         ros::NodeHandle n;
+        float x_target_abs;
+        float y_target_abs;
 
         //--------- ROS PARAMETERS ----------//
 
@@ -506,23 +508,32 @@ int main(int argc, char **argv){
                                     float box_z=-(((result_ymax+result_ymin)/2.0)*depth_height-cy)/fy*avg[0]/1000.0;
 
                                     //*********************************************************************************************
-                                    // Calculate absolute position of target found
-                                    tf::TransformListener listener;
-                                    tf::StampedTransform transform;
-                                    listener.waitForTransform("/map", depth_frameid, ros::Time(0), ros::Duration(1.0) );
-                                    listener.lookupTransform("/map", depth_frameid, ros::Time(0), transform);
+                                    try{
+                                        // Calculate absolute position of target found
+                                        tf::TransformListener listener;
+                                        tf::StampedTransform transform;
+                                        listener.waitForTransform("/map", depth_frameid, ros::Time(0), ros::Duration(0.01) );
+                                        listener.lookupTransform("/map", depth_frameid, ros::Time(0), transform);
 
-                                    float x_robot = transform.getOrigin().x();
-                                    float y_robot = transform.getOrigin().y();
+                                        float x_robot = transform.getOrigin().x();
+                                        float y_robot = transform.getOrigin().y();
 
-                                    tf::Quaternion q;
-                                    q = transform.getRotation();
-                                    float theta_robot = atan2((float)q.z(), (float)q.w()) * 2;
+                                        tf::Quaternion q;
+                                        q = transform.getRotation();
+                                        float theta_robot = atan2((float)q.z(), (float)q.w()) * 2;
 
-                                    float r_target = sqrt(pow(box_x,2) + pow(box_y,2));
-                                    float theta_target = atan2(box_y, box_x);
-                                    float x_target_abs = x_robot + r_target*cos(theta_robot + theta_target);
-                                    float y_target_abs = y_robot + r_target*sin(theta_robot + theta_target);
+                                        float r_target = sqrt(pow(box_x,2) + pow(box_y,2));
+                                        float theta_target = atan2(box_y, box_x);
+                                        x_target_abs = x_robot + r_target*cos(theta_robot + theta_target);
+                                        y_target_abs = y_robot + r_target*sin(theta_robot + theta_target);
+                                    }
+                                    catch(const std::exception& e){
+                                            absolut_reference_frame = false;
+                                            x_target_abs = 0.0;
+                                            y_target_abs = 0.0;
+                                    }
+                                    
+                                   
 
                                     //*********************************************************************************************
 
