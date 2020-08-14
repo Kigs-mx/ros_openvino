@@ -53,4 +53,5 @@
 
     <!--node name="rviz" pkg="rviz" type="rviz" args="-d $(find ros_openvino)/rviz/demo.rviz" /-->
 
+
 </launch>
