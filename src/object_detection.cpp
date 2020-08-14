@@ -40,6 +40,9 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <sstream>
 
+#include <tf/transform_listener.h>
+#include <cmath>
+
 
 using namespace InferenceEngine;
 
@@ -79,9 +82,11 @@ bool output_markerslabel;
 std::string depth_frameid;
 float markerduration;
 bool output_boxlist;
-// Flag to on/off deteccion of specific target ->Roomie-IT
+// Flag to on/off deteccion of specific target -> Roomie-IT
 std::string specific_target;
 bool find_specific_target;
+// To select refernece to get pose of objects detected
+bool is_absolute;
 //
 
 //ROS messages
@@ -245,17 +250,6 @@ int main(int argc, char **argv){
             depth_analysis=true;
             ROS_INFO("[Default] Deptconfidence_thresholdh Analysis: %s", depth_analysis ? "ENABLED" : "DISABLED");
         }
-        
-        // Get param of flag and type of interest object to detect -> Roomie-IT
-        if(n.getParam("/object_detection/find_specific_target", find_specific_target)){
-            n.getParam("/object_detection/specific_target", specific_target);
-            ROS_INFO("Node Activate to detect only: %s", specific_target.c_str());
-        }
-        else{
-            find_specific_target = false;
-            ROS_INFO("Find All type of objects trained in the Artificial Neural Network");
-            specific_target = "All types";
-        }
 
         if (depth_analysis){
             //check if markers are wanted
@@ -298,7 +292,29 @@ int main(int argc, char **argv){
 
         }
 
-        
+        //******************************************************************************
+        // Get param of flag and type of interest object to detect -> Roomie-IT
+        if(n.getParam("/object_detection/find_specific_target", find_specific_target)){
+            n.getParam("/object_detection/specific_target", specific_target);
+            ROS_INFO("Node Activate to detect only: %s", specific_target.c_str());
+        }
+        else{
+            find_specific_target = false;
+            ROS_INFO("Find All type of objects trained in the Artificial Neural Network");
+            specific_target = "All types";
+        }
+
+        //Get type of TF reference to return markers pose of objects detected -> Roomie-IT
+        if (n.getParam("/object_detection/absolut_reference_frame", is_absolute)){
+                ROS_INFO("Absolute reference to markers: %s", is_absolute);
+            }
+        else{
+                is_absolute = false; // relative to camera_frame TF
+                ROS_INFO("[Default] Absolute reference to markers: %s", is_absolute ? "true" : "false");
+            }
+        //******************************************************************************
+
+
         //ROS subscribers
         ros::Subscriber image_sub = n.subscribe("/object_detection/input_image", 1, imageCallback);
         ros::Subscriber camerainfo_sub;
@@ -489,6 +505,27 @@ int main(int argc, char **argv){
                                     float box_y=-(((result_xmax+result_xmin)/2.0)*depth_width-cx)/fx*avg[0]/1000.0;
                                     float box_z=-(((result_ymax+result_ymin)/2.0)*depth_height-cy)/fy*avg[0]/1000.0;
 
+                                    //*********************************************************************************************
+                                    // Calculate absolute position of target found
+                                    tf::TransformListener listener;
+                                    tf::StampedTransform transform;
+                                    listener.waitForTransform("/map", depth_frameid, ros::Time(0), ros::Duration(1.0) );
+                                    listener.lookupTransform("/map", depth_frameid, ros::Time(0), transform);
+
+                                    float x_robot = transform.getOrigin().x();
+                                    float y_robot = transform.getOrigin().y();
+
+                                    tf::Quaternion q;
+                                    q = transform.getRotation();
+                                    float theta_robot = atan2((float)q.z(), (float)q.w()) * 2;
+
+                                    float r_target = sqrt(pow(box_x,2) + pow(box_y,2));
+                                    float theta_target = atan2(box_y, box_x);
+                                    float x_target_abs = x_robot + r_target*cos(theta_robot + theta_target);
+                                    float y_target_abs = y_robot + r_target*sin(theta_robot + theta_target);
+
+                                    //*********************************************************************************************
+
                                     float box_width = avg[0]*depth_width/fx*(result_xmax-result_xmin)/1000.0;
                                     float box_height= avg[0]*depth_height/fy*(result_ymax-result_ymin)/1000.0;
                                     float box_depth = dstd[0]*2.0/1000.0;
@@ -503,9 +540,17 @@ int main(int argc, char **argv){
                                         marker.type = visualization_msgs::Marker::CUBE;
                                         marker.action = visualization_msgs::Marker::ADD;
 
-                                        marker.pose.position.x = box_x;
-                                        marker.pose.position.y = box_y;
-                                        marker.pose.position.z = box_z;
+                                        if(is_absolute){
+                                            marker.pose.position.x = x_target_abs;
+                                            marker.pose.position.y = y_target_abs;
+                                            marker.pose.position.z = box_z;
+                                        }
+                                        else{
+                                            marker.pose.position.x = box_x;
+                                            marker.pose.position.y = box_y;
+                                            marker.pose.position.z = box_z;
+                                        }
+                                        
                                         marker.pose.orientation.x = 0.0;
                                         marker.pose.orientation.y = 0.0;
                                         marker.pose.orientation.z = 0.0;
