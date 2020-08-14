@@ -86,7 +86,7 @@ bool output_boxlist;
 std::string specific_target;
 bool find_specific_target;
 // To select refernece to get pose of objects detected
-bool is_absolute;
+bool absolut_reference_frame;
 //
 
 //ROS messages
@@ -305,12 +305,12 @@ int main(int argc, char **argv){
         }
 
         //Get type of TF reference to return markers pose of objects detected -> Roomie-IT
-        if (n.getParam("/object_detection/absolut_reference_frame", is_absolute)){
-                ROS_INFO("Absolute reference to markers: %s", is_absolute);
+        if (n.getParam("/object_detection/absolut_reference_frame", absolut_reference_frame)){
+                ROS_INFO("Absolute reference to markers: %s", absolut_reference_frame ? "true" : "false");
             }
         else{
-                is_absolute = false; // relative to camera_frame TF
-                ROS_INFO("[Default] Absolute reference to markers: %s", is_absolute ? "true" : "false");
+                absolut_reference_frame = false; // relative to camera_frame TF
+                ROS_INFO("[Default] Absolute reference to markers: %s", absolut_reference_frame ? "true" : "false");
             }
         //******************************************************************************
 
@@ -540,7 +540,7 @@ int main(int argc, char **argv){
                                         marker.type = visualization_msgs::Marker::CUBE;
                                         marker.action = visualization_msgs::Marker::ADD;
 
-                                        if(is_absolute){
+                                        if(absolut_reference_frame){
                                             marker.pose.position.x = x_target_abs;
                                             marker.pose.position.y = y_target_abs;
                                             marker.pose.position.z = box_z;
