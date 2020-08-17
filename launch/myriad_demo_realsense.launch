@@ -42,7 +42,6 @@
         <!-- Roomie parameters-->
         <param name="find_specific_target"  value="true"/>
         <param name="specific_target"   value="person"/>
-        <param name="absolut_reference_frame"    value="false"/>
         <!-- end of roomie parameters -->
 
 	    <!--param name="frame_id" value="/d435_link" /--> 

@@ -86,7 +86,7 @@ bool output_boxlist;
 std::string specific_target;
 bool find_specific_target;
 // To select refernece to get pose of objects detected
-bool absolut_reference_frame;
+//bool absolut_reference_frame;
 //
 
 //ROS messages
@@ -305,7 +305,7 @@ int main(int argc, char **argv){
             ROS_INFO("Find All type of objects trained in the Artificial Neural Network");
             specific_target = "All types";
         }
-
+        /*
         //Get type of TF reference to return markers pose of objects detected -> Roomie-IT
         if (n.getParam("/object_detection/absolut_reference_frame", absolut_reference_frame)){
                 ROS_INFO("Absolute reference to markers: %s", absolut_reference_frame ? "true" : "false");
@@ -314,6 +314,7 @@ int main(int argc, char **argv){
                 absolut_reference_frame = false; // relative to camera_frame TF
                 ROS_INFO("[Default] Absolute reference to markers: %s", absolut_reference_frame ? "true" : "false");
             }
+        */
         //******************************************************************************
 
 
@@ -508,11 +509,11 @@ int main(int argc, char **argv){
                                     float box_z=-(((result_ymax+result_ymin)/2.0)*depth_height-cy)/fy*avg[0]/1000.0;
 
                                     //*********************************************************************************************
-                                    try{
+                                    /*try{
                                         // Calculate absolute position of target found
                                         tf::TransformListener listener;
                                         tf::StampedTransform transform;
-                                        listener.waitForTransform("/map", depth_frameid, ros::Time(0), ros::Duration(0.01) );
+                                        listener.waitForTransform("/map", depth_frameid, ros::Time(0), ros::Duration(0.4) );
                                         listener.lookupTransform("/map", depth_frameid, ros::Time(0), transform);
 
                                         float x_robot = transform.getOrigin().x();
@@ -526,13 +527,15 @@ int main(int argc, char **argv){
                                         float theta_target = atan2(box_y, box_x);
                                         x_target_abs = x_robot + r_target*cos(theta_robot + theta_target);
                                         y_target_abs = y_robot + r_target*sin(theta_robot + theta_target);
+                                        ROS_INFO("ABSOLUTE COORDINATES CALCULATED :)");
                                     }
                                     
                                     catch(const std::exception& e){
                                             absolut_reference_frame = false;
                                             x_target_abs = 0.0;
                                             y_target_abs = 0.0;
-                                    }
+                                            ROS_INFO("RELATIVE COORDINATES CALCULATED :d");
+                                    }*/
                                     
                                    
 
@@ -552,16 +555,16 @@ int main(int argc, char **argv){
                                         marker.type = visualization_msgs::Marker::CUBE;
                                         marker.action = visualization_msgs::Marker::ADD;
 
-                                        if(absolut_reference_frame){
+                                    /*    if(absolut_reference_frame){
                                             marker.pose.position.x = x_target_abs;
                                             marker.pose.position.y = y_target_abs;
                                             marker.pose.position.z = box_z;
-                                        }
-                                        else{
-                                            marker.pose.position.x = box_x;
-                                            marker.pose.position.y = box_y;
-                                            marker.pose.position.z = box_z;
-                                        }
+                                        }*/
+                                        //else{
+                                        marker.pose.position.x = box_x;
+                                        marker.pose.position.y = box_y;
+                                        marker.pose.position.z = box_z;
+                                        //}
                                         
                                         marker.pose.orientation.x = 0.0;
                                         marker.pose.orientation.y = 0.0;
