@@ -527,6 +527,7 @@ int main(int argc, char **argv){
                                         x_target_abs = x_robot + r_target*cos(theta_robot + theta_target);
                                         y_target_abs = y_robot + r_target*sin(theta_robot + theta_target);
                                     }
+                                    
                                     catch(const std::exception& e){
                                             absolut_reference_frame = false;
                                             x_target_abs = 0.0;
