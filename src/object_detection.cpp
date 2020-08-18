@@ -536,9 +536,6 @@ int main(int argc, char **argv){
                                             y_target_abs = 0.0;
                                             ROS_INFO("RELATIVE COORDINATES CALCULATED :d");
                                     }*/
-                                    
-                                   
-
                                     //*********************************************************************************************
 
                                     float box_width = avg[0]*depth_width/fx*(result_xmax-result_xmin)/1000.0;
