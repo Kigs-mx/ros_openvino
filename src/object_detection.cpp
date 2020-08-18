@@ -40,8 +40,9 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <sstream>
 
-#include <tf/transform_listener.h>
+//#include <tf/transform_listener.h>
 #include <cmath>
+#include "std_msgs/Bool.h"
 
 
 using namespace InferenceEngine;
@@ -87,6 +88,9 @@ std::string specific_target;
 bool find_specific_target;
 // To select refernece to get pose of objects detected
 //bool absolut_reference_frame;
+// Variables to activate/disactivate node 
+bool activate_node = false;
+std_msgs::Bool activate_msg;
 //
 
 //ROS messages
@@ -148,6 +152,10 @@ void depthCallback(const sensor_msgs::Image::ConstPtr& depth_msg){
     depth_mat.copyTo(depth_frame);
     depth_width  = (size_t)depth_mat.size().width;
     depth_height = (size_t)depth_mat.size().height;
+}
+
+void enable_node_callback(const std_msgs::Bool::ConstPtr& activate_msg){
+    activate_node = activate_msg->data;
 }
 
 //Main Function
@@ -322,6 +330,9 @@ int main(int argc, char **argv){
         ros::Subscriber image_sub = n.subscribe("/object_detection/input_image", 1, imageCallback);
         ros::Subscriber camerainfo_sub;
         ros::Subscriber depth_sub; 
+
+        //subscriber to enable or disable object detection
+        //ros::Subscriber enable_node = n.subscribe("/object_detection/enable_detection_node", 1, enable_node_callback);
         
         //ROS publishers
         ros::Publisher image_pub;
@@ -333,7 +344,7 @@ int main(int argc, char **argv){
         if (output_as_list){
             result_pub = n.advertise<ros_openvino::Objects>("/object_detection/results",1);
         }
-        
+
         //Depth analysis allow subscription and publishing
         ros::Publisher marker_pub;
         ros::Publisher boxlist_pub;

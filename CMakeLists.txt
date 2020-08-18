@@ -14,7 +14,7 @@ endif()
 
 set(OpenCV_DIR $ENV{OpenCV_DIR})
 find_package(catkin REQUIRED COMPONENTS
-  message_generation roscpp OpenCV InferenceEngine sensor_msgs roslaunch roslint topic_tools tf)
+  message_generation roscpp OpenCV InferenceEngine sensor_msgs roslaunch roslint topic_tools tf std_msgs)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -42,7 +42,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## * In this file (CMakeLists.txt):
 ##   * add "message_generation" and every package in MSG_DEP_SET to
 find_package(catkin REQUIRED COMPONENTS
-  roscpp tf
+  roscpp tf std_msgs
 )
 ##   * add "message_runtime" and every package in MSG_DEP_SET to
 ##     catkin_package(CATKIN_DEPENDS ...)
