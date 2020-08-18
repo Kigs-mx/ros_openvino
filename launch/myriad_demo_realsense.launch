@@ -24,10 +24,17 @@
     </include>
     -->
 
+    <arg name="input_image_topic" default="/d435/color/image_raw"/>
+    <arg name="input_depth_topic" default="/d435/aligned_depth_to_color/image_raw"/>
+    <arg name="camera_info_topic" default="/d435/aligned_depth_to_color/camera_info"/>
+    <arg name="frame_id" default="/d435_aligned_depth_to_color_frame"/>
+    <arg name="find_specific_target" default="true"/>
+    <arg name="specific_target" default="person"/>
+
     <node name="object_detection" pkg="ros_openvino" type="object_detection" output="screen">
-        <remap from="/object_detection/input_image" to="/d435/color/image_raw" />
-	    <remap from="/object_detection/input_depth" to="/d435/aligned_depth_to_color/image_raw" />
-        <remap from="/object_detection/camera_info" to="/d435/aligned_depth_to_color/camera_info" />
+        <remap from="/object_detection/input_image" to="$(arg input_image_topic)" />
+	    <remap from="/object_detection/input_depth" to="$(arg input_depth_topic)" />
+        <remap from="/object_detection/camera_info" to="$(arg camera_info_topic)" />
 
         <param name="threshold"         value="0.75" />
         <param name="target"            value="MYRIAD" />
@@ -39,18 +46,14 @@
         <param name="output_as_list"    value="true" />
         <param name="depth_analysis"    value= "true" />
         <param name="output_as_markers" value="true" />
-        <!-- Roomie parameters-->
-        <param name="find_specific_target"  value="true"/>
-        <param name="specific_target"   value="person"/>
-        <!-- end of roomie parameters -->
-
+        <param name="find_specific_target"  value="$(arg find_specific_target)"/>
+        <param name="specific_target"   value="$(arg specific_target)"/>
 	    <!--param name="frame_id" value="/d435_link" /--> 
-        <param name="frame_id" value="/d435_aligned_depth_to_color_frame" />
-        <param name="output_as_makerslabel" value="false" />
+        <param name="frame_id" value="$(arg frame_id)" />
+        <param name="output_as_makerslabel" value="true" />
         <param name="output_as_boxlist" value="false" />
     </node>
 
     <!--node name="rviz" pkg="rviz" type="rviz" args="-d $(find ros_openvino)/rviz/demo.rviz" /-->
-
 
 </launch>
