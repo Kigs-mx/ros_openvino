@@ -24,14 +24,14 @@
     </include>
     -->
 
-    <arg name="input_image_topic" default="/d435_2/color/image_raw"/>
-    <arg name="input_depth_topic" default="/d435_2/aligned_depth_to_color/image_raw"/>
-    <arg name="camera_info_topic" default="/d435_2/aligned_depth_to_color/camera_info"/>
-    <arg name="frame_id" default="/d435_2_aligned_depth_to_color_frame"/>
+    <arg name="input_image_topic" default="/d435/color/image_raw"/>
+    <arg name="input_depth_topic" default="/d435/aligned_depth_to_color/image_raw"/>
+    <arg name="camera_info_topic" default="/d435/aligned_depth_to_color/camera_info"/>
+    <arg name="frame_id" default="/d435_aligned_depth_to_color_frame"/>
     <arg name="find_specific_target" default="true"/>
     <arg name="specific_target" default="person"/>
 
-    <node name="object_detection" pkg="ros_openvino" type="object_detection" output="screen">
+    <node name="object_detection" pkg="ros_openvino" type="object_detection" output="screen" respawn="true">
         <remap from="/object_detection/input_image" to="$(arg input_image_topic)" />
 	    <remap from="/object_detection/input_depth" to="$(arg input_depth_topic)" />
         <remap from="/object_detection/camera_info" to="$(arg camera_info_topic)" />
